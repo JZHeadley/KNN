@@ -4,10 +4,19 @@
 #include <float.h>
 #include <math.h>
 #include <iostream>
+#include <limits.h>
 #include "libarff/arff_parser.h"
 #include "libarff/arff_data.h"
 
 using namespace std;
+
+double euclideanDistance(ArffInstance* instance1, ArffInstance* instance2, int numAttributes){
+    double sum=0;
+    for (int attributeIndex=0; attributeIndex < numAttributes; attributeIndex++){
+        sum+=pow((instance1->get(attributeIndex)->operator int32())-(instance2->get(attributeIndex)->operator int32()), 2);
+    }
+    return sqrt(sum);
+}
 
 int* KNN(ArffData* dataset)
 {
@@ -15,13 +24,25 @@ int* KNN(ArffData* dataset)
     printf("The number of instances is %d\n", dataset->num_instances());
     printf("The number of attributes is %d\n", dataset->num_attributes());
     for (int instanceIndex=0; instanceIndex < dataset->num_instances(); instanceIndex++){
-        for(int attributeIndex=0;attributeIndex < dataset->num_attributes(); attributeIndex++){
-               float attributeValue = dataset->get_instance(instanceIndex)->get(attributeIndex)->operator float();
-               printf("The attribute was %d\n",attributeValue);
+        int bestDistance=INT_MAX;
+        ArffInstance* nearestNeighbor;
+        for (int instance2Index=0; instance2Index < dataset->num_instances(); instance2Index++){
+            double distance = euclideanDistance(dataset->get_instance(instanceIndex),dataset->get_instance(instance2Index),dataset->num_attributes()-1);
+            // printf("The distance was %d\n", distance);
+            // We've found a closer neigher so lets record
+            if(distance < bestDistance){
+                bestDistance = distance;
+                nearestNeighbor = dataset->get_instance(instance2Index);
+                printf("We've found a closer neighbor\n");
+            }
         }
+        int prediction = nearestNeighbor->get(dataset->num_attributes()-1)->operator int32();
+        // Put class prediction into array
+        predictions[instanceIndex] = prediction;
+        int classValue =  dataset->get_instance(instanceIndex)->get(dataset->num_attributes() - 1)->operator int32();
+        printf("Prediction was %d actual was %d\n",predictions[instanceIndex],classValue);
     }
     // float attributeValue = dataset->get_instance(instanceIndex)->get(attributeIndex)->operator float();
-    // printf("The attribute value was %d",attributeValue);
 // int classValue =  dataset->get_instance(instanceIndex)->get(dataset->num_attributes() - 1)->operator int32();
     
     // Implement KNN here, fill array of class predictions
@@ -79,3 +100,4 @@ int main(int argc, char *argv[])
   
     printf("The KNN classifier for %lu instances required %llu ms CPU time. Accuracy was %.4f\n", dataset->num_instances(), (long long unsigned int) diff, accuracy);
 }
+
