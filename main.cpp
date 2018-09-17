@@ -24,23 +24,26 @@ int* KNN(ArffData* dataset)
     printf("The number of instances is %d\n", dataset->num_instances());
     printf("The number of attributes is %d\n", dataset->num_attributes());
     for (int instanceIndex=0; instanceIndex < dataset->num_instances(); instanceIndex++){
-        int bestDistance=INT_MAX;
+        double bestDistance=FLT_MAX;
         ArffInstance* nearestNeighbor;
         for (int instance2Index=0; instance2Index < dataset->num_instances(); instance2Index++){
+            if (instanceIndex == instance2Index){
+                continue;
+            }
             double distance = euclideanDistance(dataset->get_instance(instanceIndex),dataset->get_instance(instance2Index),dataset->num_attributes()-1);
             // printf("The distance was %d\n", distance);
             // We've found a closer neigher so lets record
+
             if(distance < bestDistance){
                 bestDistance = distance;
                 nearestNeighbor = dataset->get_instance(instance2Index);
-                printf("We've found a closer neighbor\n");
             }
         }
         int prediction = nearestNeighbor->get(dataset->num_attributes()-1)->operator int32();
         // Put class prediction into array
         predictions[instanceIndex] = prediction;
         int classValue =  dataset->get_instance(instanceIndex)->get(dataset->num_attributes() - 1)->operator int32();
-        printf("Prediction was %d actual was %d\n",predictions[instanceIndex],classValue);
+        // printf("Prediction was %d actual was %d\n",predictions[instanceIndex],classValue);
     }
     // float attributeValue = dataset->get_instance(instanceIndex)->get(attributeIndex)->operator float();
 // int classValue =  dataset->get_instance(instanceIndex)->get(dataset->num_attributes() - 1)->operator int32();
