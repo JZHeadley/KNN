@@ -55,7 +55,7 @@ int isCloser(NeighborDistance* nearestNeighbors, double newNeighborDistance, int
 {
     for (int i = 0; i < numNearestNeighbors; ++i)
     {
-        if (nearestNeighbors[i] == NULL)
+        if (nearestNeighbors[i].neighbor == NULL)
         {
             return i;
         }
@@ -75,13 +75,19 @@ int* KNN(ArffData* dataset, int k)
     NeighborDistance* nearestNeighbors = (NeighborDistance*) malloc(k * sizeof(NeighborDistance));
      for (int instanceIndex=0; instanceIndex < numInstances; instanceIndex++)
      {
-        ArrfInstance* instance1 = datset->get_instance(instanceIndex);
+        ArffInstance* instance1 = dataset->get_instance(instanceIndex);
         for (int instance2Index=0; instance2Index < numInstances; instance2Index++)
         {
             if (instanceIndex == instance2Index)
                 continue;
-
-            closer = isCloser(nearestNeighbors, euclideanDistance(instance1, dataset->get_instance(instance2Index),numAttributes),k)
+            double newNeighborDistance = euclideanDistance(instance1, dataset->get_instance(instance2Index), numAttributes);
+            int closer = isCloser(nearestNeighbors, newNeighborDistance, k);
+            if (closer != -1)
+            {
+                nearestNeighbors[closer].distance = newNeighborDistance;
+                nearestNeighbors[closer].neighbor = dataset->get_instance(instance2Index);
+            }
+            predictions[instanceIndex] = nearestNeighbors[0].neighbor->get(numAttributes-1)->operator int32();
         }
      }
 
