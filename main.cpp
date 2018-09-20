@@ -9,7 +9,7 @@
 #include "libarff/arff_data.h"
 
 using namespace std;
-#define DEBUG true
+#define DEBUG false
 // #define INSTANCETOCHECK 4897
 #define K 4
 
@@ -122,7 +122,7 @@ int* KNN(ArffData* dataset, int k)
             double newNeighborDistance = euclideanDistance(instance1, dataset->get_instance(instance2Index), numAttributes);
             if (instanceIndex == INSTANCETOCHECK && DEBUG)
             {
-                // printf("distance was %f\n", newNeighborDistance);
+                printf("distance was %f\n", newNeighborDistance);
             }
 
 
