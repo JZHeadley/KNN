@@ -9,6 +9,9 @@
 #include "libarff/arff_data.h"
 
 using namespace std;
+#define DEBUG true
+#define INSTANCETOCHECK 4897
+#define K 5
 
 double euclideanDistance(ArffInstance* instance1, ArffInstance* instance2, int numAttributes) {
     double sum = 0;
@@ -24,11 +27,17 @@ typedef struct
     double          distance;
 } NeighborDistance;
 
-int vote(NeighborDistance* nearestNeighbors, int k, int numAttributes) {
-    int* classVotes = (int *)malloc(numAttributes * sizeof(int));
+int vote(NeighborDistance* nearestNeighbors, int k, int numAttributes, int instanceIndex) {
+    // int* classVotes = (int *)malloc(numAttributes * sizeof(int));
+    int classVotes[numAttributes] = { 0 };
+
     for (int i = 0; i < k; i++)
     {
         int classVote = nearestNeighbors[i].neighbor->get(numAttributes - 1)->operator int32();
+        if (instanceIndex == INSTANCETOCHECK && DEBUG)
+        {
+            printf("The class of this neigbor is %i\n", classVote);
+        }
         classVotes[classVote]++;
     }
     int indexOfMax = 0;
@@ -40,15 +49,15 @@ int vote(NeighborDistance* nearestNeighbors, int k, int numAttributes) {
         }
     }
     // printf("predictedClass: %i\n",indexOfMax);
-    free(classVotes);
+    // free(classVotes);
     return indexOfMax;
 }
 
 int* KNN(ArffData* dataset, int k)
 {
-    int* predictions = (int *) malloc(dataset->num_instances() * sizeof(int));
     int numInstances =  dataset->num_instances();
     int numAttributes =  dataset->num_attributes();
+    int* predictions = (int *) malloc(numInstances * sizeof(int));
     for (int instanceIndex = 0; instanceIndex < numInstances; instanceIndex++)
     {
         ArffInstance* instance1 = dataset->get_instance(instanceIndex);
@@ -66,7 +75,7 @@ int* KNN(ArffData* dataset, int k)
                 continue;
 
             double newNeighborDistance = euclideanDistance(instance1, dataset->get_instance(instance2Index), numAttributes);
-            if (instanceIndex == 0)
+            if (instanceIndex == INSTANCETOCHECK && DEBUG)
             {
                 printf("distance was %f\n", newNeighborDistance);
             }
@@ -98,13 +107,20 @@ int* KNN(ArffData* dataset, int k)
                 }
                 if (newNeighborDistance < worstDistance)
                 {
+                    if (instanceIndex == INSTANCETOCHECK && DEBUG)
+                    {
+                        printf("new nearest has been found at position %d with first attribute %f\n", instance2Index, dataset->get_instance(instance2Index)->get(0)->operator float());
+                    }
                     nearestNeighbors[indexOfMax].distance = newNeighborDistance;
                     nearestNeighbors[indexOfMax].neighbor = dataset->get_instance(instance2Index);
                 }
             }
 
         }
-        predictions[instanceIndex] = vote(nearestNeighbors, k, numAttributes);
+        predictions[instanceIndex] = vote(nearestNeighbors, k, numAttributes, instanceIndex);
+        if (instanceIndex == INSTANCETOCHECK && DEBUG) {
+            printf("The predicted class was %i\n", predictions[instanceIndex]);
+        }
         free(nearestNeighbors);
     }
 
@@ -152,7 +168,7 @@ int main(int argc, char *argv[])
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 
-    int* predictions = KNN(dataset, 3);
+    int* predictions = KNN(dataset, K);
     int* confusionMatrix = computeConfusionMatrix(predictions, dataset);
     float accuracy = computeAccuracy(confusionMatrix, dataset);
 
