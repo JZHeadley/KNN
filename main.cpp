@@ -10,8 +10,10 @@
 
 using namespace std;
 #define DEBUG true
-#define INSTANCETOCHECK 4897
-#define K 5
+// #define INSTANCETOCHECK 4897
+#define K 2
+
+int INSTANCETOCHECK = 1;
 
 double euclideanDistance(ArffInstance* instance1, ArffInstance* instance2, int numAttributes) {
     double sum = 0;
@@ -29,7 +31,8 @@ typedef struct
 
 int vote(NeighborDistance* nearestNeighbors, int k, int numAttributes, int instanceIndex) {
     // int* classVotes = (int *)malloc(numAttributes * sizeof(int));
-    int classVotes[numAttributes] = { 0 };
+    int classVotes[numAttributes] = { 0 }; // apparently this initializes to 0's I should learn c++... also if I do it this way
+    //rather than the malloc above it works so...we're sticking with it
 
     for (int i = 0; i < k; i++)
     {
@@ -41,15 +44,21 @@ int vote(NeighborDistance* nearestNeighbors, int k, int numAttributes, int insta
         classVotes[classVote]++;
     }
     int indexOfMax = 0;
+    int countMax = INT_MAX;
     for (int i = 0; i < numAttributes; i++)
     {
+        if (classVotes[indexOfMax] == countMax)
+        {
+            printf("seems like we've found a duplicate?\n");
+        }
         if (classVotes[indexOfMax] < classVotes[i])
         {
             indexOfMax = i;
         }
     }
-    // printf("predictedClass: %i\n",indexOfMax);
-    // free(classVotes);
+    if (instanceIndex == INSTANCETOCHECK && DEBUG) {
+        printf("The predicted class was %i\n", indexOfMax);
+    }
     return indexOfMax;
 }
 
@@ -118,9 +127,6 @@ int* KNN(ArffData* dataset, int k)
 
         }
         predictions[instanceIndex] = vote(nearestNeighbors, k, numAttributes, instanceIndex);
-        if (instanceIndex == INSTANCETOCHECK && DEBUG) {
-            printf("The predicted class was %i\n", predictions[instanceIndex]);
-        }
         free(nearestNeighbors);
     }
 
@@ -158,8 +164,11 @@ int main(int argc, char *argv[])
 {
     if (argc != 2)
     {
-        cout << "Usage: ./main datasets/datasetFile.arff" << endl;
-        exit(0);
+        if (argc != 3)
+        {
+            cout << "Usage: ./main datasets/datasetFile.arff" << endl;
+            exit(0);
+        }
     }
 
     ArffParser parser(argv[1]);
@@ -167,7 +176,10 @@ int main(int argc, char *argv[])
     struct timespec start, end;
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-
+    if (argv[2] != NULL)
+    {
+        INSTANCETOCHECK = atoi(argv[2]);
+    }
     int* predictions = KNN(dataset, K);
     int* confusionMatrix = computeConfusionMatrix(predictions, dataset);
     float accuracy = computeAccuracy(confusionMatrix, dataset);
