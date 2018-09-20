@@ -44,16 +44,21 @@ int vote(NeighborDistance* nearestNeighbors, int k, int numAttributes, int insta
         classVotes[classVote]++;
     }
     int indexOfMax = 0;
-    int countMax = INT_MAX;
+    int countMax = 0;
     for (int i = 0; i < numAttributes; i++)
     {
-        if (classVotes[indexOfMax] == countMax)
+        if (classVotes[i] == countMax && classVotes[i] > 0)
         {
-            printf("seems like we've found a duplicate?\n");
+            if (instanceIndex == INSTANCETOCHECK && DEBUG) {
+                printf("seems like we've found a duplicate?\n");
+            }
+            // handle duplicates here or pass off to method to do so
+            
         }
         if (classVotes[indexOfMax] < classVotes[i])
         {
             indexOfMax = i;
+            countMax = classVotes[i];
         }
     }
     if (instanceIndex == INSTANCETOCHECK && DEBUG) {
@@ -86,7 +91,7 @@ int* KNN(ArffData* dataset, int k)
             double newNeighborDistance = euclideanDistance(instance1, dataset->get_instance(instance2Index), numAttributes);
             if (instanceIndex == INSTANCETOCHECK && DEBUG)
             {
-                printf("distance was %f\n", newNeighborDistance);
+                // printf("distance was %f\n", newNeighborDistance);
             }
 
 
