@@ -11,7 +11,7 @@
 using namespace std;
 #define DEBUG true
 // #define INSTANCETOCHECK 4897
-#define K 2
+#define K 4
 
 int INSTANCETOCHECK = 1;
 
@@ -53,7 +53,38 @@ int vote(NeighborDistance* nearestNeighbors, int k, int numAttributes, int insta
                 printf("seems like we've found a duplicate?\n");
             }
             // handle duplicates here or pass off to method to do so
-            
+
+            //lets remove the worst neighbor and revote with a lower k
+            int worstNeighborIndex = 0;
+            double worstDistance = 0;
+            for (int j = 0; j < k; j++)
+            {
+                if (nearestNeighbors[j].distance > worstDistance)
+                {
+                    worstDistance = nearestNeighbors[j].distance;
+                    worstNeighborIndex = j;
+                }
+            }
+            if (instanceIndex == INSTANCETOCHECK && DEBUG) {
+                printf("max was %f at index %i\n", worstDistance, worstNeighborIndex);
+            }
+            // we know the worst now so lets reconstruct the neighbors without it
+            NeighborDistance* newNeighbors = (NeighborDistance*) malloc((k - 1) * sizeof(NeighborDistance));
+            // I hate linked lists but heres where I regret not using one...
+            int neighborIndex = 0;
+            for (int j = 0; j < k; j++)
+            {
+                if (j != worstNeighborIndex)
+                {
+                    newNeighbors[neighborIndex].neighbor = nearestNeighbors[j].neighbor;
+                    newNeighbors[neighborIndex].distance= nearestNeighbors[j].distance;
+                    neighborIndex++;
+                }
+            }
+            int classResult = vote(newNeighbors,k-1,numAttributes,instanceIndex);
+            free(newNeighbors);
+            return classResult;
+
         }
         if (classVotes[indexOfMax] < classVotes[i])
         {
