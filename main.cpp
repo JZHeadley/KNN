@@ -7,6 +7,7 @@
 #include <limits.h>
 #include "libarff/arff_parser.h"
 #include "libarff/arff_data.h"
+#include <pthread.h>
 
 using namespace std;
 #define DEBUG false
@@ -14,6 +15,10 @@ using namespace std;
 #define K 4
 
 int INSTANCETOCHECK = 1;
+
+ArffData* dataset;
+int numInstances;
+int numAttributes;
 
 double euclideanDistance(ArffInstance* instance1, ArffInstance* instance2, int numAttributes) {
     double sum = 0;
@@ -29,18 +34,21 @@ typedef struct
     double          distance;
 } NeighborDistance;
 
+typedef struct
+{
+    int           threadId;
+    int           k;
+} KNNArgs;
+
 int vote(NeighborDistance* nearestNeighbors, int k, int numAttributes, int instanceIndex) {
     // int* classVotes = (int *)malloc(numAttributes * sizeof(int));
-    int classVotes[numAttributes] = { 0 }; // apparently this initializes to 0's I should learn c++... also if I do it this way
+    int classVotes[numAttributes] = { 0 }; // apparently tohis initializes to 0's I should learn c++... also if I do it this way
     //rather than the malloc above it works so...we're sticking with it
 
     for (int i = 0; i < k; i++)
     {
         int classVote = nearestNeighbors[i].neighbor->get(numAttributes - 1)->operator int32();
-        if (instanceIndex == INSTANCETOCHECK && DEBUG)
-        {
-            printf("The class of this neigbor is %i\n", classVote);
-        }
+
         classVotes[classVote]++;
     }
     int indexOfMax = 0;
@@ -49,9 +57,7 @@ int vote(NeighborDistance* nearestNeighbors, int k, int numAttributes, int insta
     {
         if (classVotes[i] == countMax && classVotes[i] > 0)
         {
-            if (instanceIndex == INSTANCETOCHECK && DEBUG) {
-                printf("seems like we've found a duplicate?\n");
-            }
+
             // handle duplicates here or pass off to method to do so
 
             //lets remove the worst neighbor and revote with a lower k
@@ -65,9 +71,7 @@ int vote(NeighborDistance* nearestNeighbors, int k, int numAttributes, int insta
                     worstNeighborIndex = j;
                 }
             }
-            if (instanceIndex == INSTANCETOCHECK && DEBUG) {
-                printf("max was %f at index %i\n", worstDistance, worstNeighborIndex);
-            }
+
             // we know the worst now so lets reconstruct the neighbors without it
             NeighborDistance* newNeighbors = (NeighborDistance*) malloc((k - 1) * sizeof(NeighborDistance));
             // I hate linked lists but heres where I regret not using one...
@@ -77,11 +81,11 @@ int vote(NeighborDistance* nearestNeighbors, int k, int numAttributes, int insta
                 if (j != worstNeighborIndex)
                 {
                     newNeighbors[neighborIndex].neighbor = nearestNeighbors[j].neighbor;
-                    newNeighbors[neighborIndex].distance= nearestNeighbors[j].distance;
+                    newNeighbors[neighborIndex].distance = nearestNeighbors[j].distance;
                     neighborIndex++;
                 }
             }
-            int classResult = vote(newNeighbors,k-1,numAttributes,instanceIndex);
+            int classResult = vote(newNeighbors, k - 1, numAttributes, instanceIndex);
             free(newNeighbors);
             return classResult;
 
@@ -92,83 +96,72 @@ int vote(NeighborDistance* nearestNeighbors, int k, int numAttributes, int insta
             countMax = classVotes[i];
         }
     }
-    if (instanceIndex == INSTANCETOCHECK && DEBUG) {
-        printf("The predicted class was %i\n", indexOfMax);
-    }
+
     return indexOfMax;
 }
 
-int* KNN(ArffData* dataset, int k)
+void* threadedKNN(void* args)
 {
-    int numInstances =  dataset->num_instances();
-    int numAttributes =  dataset->num_attributes();
-    int* predictions = (int *) malloc(numInstances * sizeof(int));
-    for (int instanceIndex = 0; instanceIndex < numInstances; instanceIndex++)
+    KNNArgs* knnArgs = (KNNArgs*) args;
+
+    int threadId = knnArgs->threadId;
+    int k = knnArgs->k;
+    ArffInstance* instance1 = dataset->get_instance(threadId);
+    NeighborDistance* nearestNeighbors = (NeighborDistance*) malloc(k * sizeof(NeighborDistance));
+
+    for (int i = 0; i < k; i++)
     {
-        ArffInstance* instance1 = dataset->get_instance(instanceIndex);
-        NeighborDistance* nearestNeighbors = (NeighborDistance*) malloc(k * sizeof(NeighborDistance));
-
-        for (int i = 0; i < k; i++)
-        {
-            nearestNeighbors[i].distance = FLT_MAX;
-        }
-
-        double worstBestDistance = FLT_MAX;
-        for (int instance2Index = 0; instance2Index < numInstances; instance2Index++)
-        {
-            if (instanceIndex == instance2Index)
-                continue;
-
-            double newNeighborDistance = euclideanDistance(instance1, dataset->get_instance(instance2Index), numAttributes);
-            if (instanceIndex == INSTANCETOCHECK && DEBUG)
-            {
-                printf("distance was %f\n", newNeighborDistance);
-            }
-
-
-            bool placed = false;
-            for (int i = 0; i < k; i++)
-            {
-                if (nearestNeighbors[i].neighbor == NULL)
-                {
-                    nearestNeighbors[i].distance = newNeighborDistance;
-                    nearestNeighbors[i].neighbor = dataset->get_instance(instance2Index);
-                    placed = true;
-                    break;
-                }
-            }
-            if (!placed) // after initial filling of nearestNeighbors... hopefully..
-            {
-                int indexOfMax = 0;
-                double worstDistance = 0;
-
-                for (int i = 0; i < k; i++)
-                {
-                    if (nearestNeighbors[i].distance > worstDistance)
-                    {
-                        worstDistance = nearestNeighbors[i].distance;
-                        indexOfMax = i;
-                    }
-                }
-                if (newNeighborDistance < worstDistance)
-                {
-                    if (instanceIndex == INSTANCETOCHECK && DEBUG)
-                    {
-                        printf("new nearest has been found at position %d with first attribute %f\n", instance2Index, dataset->get_instance(instance2Index)->get(0)->operator float());
-                    }
-                    nearestNeighbors[indexOfMax].distance = newNeighborDistance;
-                    nearestNeighbors[indexOfMax].neighbor = dataset->get_instance(instance2Index);
-                }
-            }
-
-        }
-        predictions[instanceIndex] = vote(nearestNeighbors, k, numAttributes, instanceIndex);
-        free(nearestNeighbors);
+        nearestNeighbors[i].distance = FLT_MAX;
     }
 
-    return predictions;
-}
+    for (int instance2Index = 0; instance2Index < numInstances; instance2Index++)
+    {
+        if (threadId == instance2Index)
+            continue;
 
+        double newNeighborDistance = euclideanDistance(instance1, dataset->get_instance(instance2Index), numAttributes);
+
+
+        bool placed = false;
+        for (int i = 0; i < k; i++)
+        {
+            if (nearestNeighbors[i].neighbor == NULL)
+            {
+                nearestNeighbors[i].distance = newNeighborDistance;
+                nearestNeighbors[i].neighbor = dataset->get_instance(instance2Index);
+                placed = true;
+                break;
+            }
+        }
+        if (!placed) // after initial filling of nearestNeighbors... hopefully..
+        {
+            int indexOfMax = 0;
+            double worstDistance = 0;
+
+            for (int i = 0; i < k; i++)
+            {
+                if (nearestNeighbors[i].distance > worstDistance)
+                {
+                    worstDistance = nearestNeighbors[i].distance;
+                    indexOfMax = i;
+                }
+            }
+            if (newNeighborDistance < worstDistance)
+            {
+                nearestNeighbors[indexOfMax].distance = newNeighborDistance;
+                nearestNeighbors[indexOfMax].neighbor = dataset->get_instance(instance2Index);
+            }
+        }
+
+    }
+    int classification = vote(nearestNeighbors, k, numAttributes, threadId);
+    free(nearestNeighbors);
+    delete knnArgs;
+    pthread_exit((void*) classification);
+
+
+
+}
 int* computeConfusionMatrix(int* predictions, ArffData* dataset)
 {
     int* confusionMatrix = (int*)calloc(dataset->num_classes() * dataset->num_classes(), sizeof(int)); // matriz size numberClasses x numberClasses
@@ -208,15 +201,36 @@ int main(int argc, char *argv[])
     }
 
     ArffParser parser(argv[1]);
-    ArffData *dataset = parser.parse();
+    dataset = parser.parse();
     struct timespec start, end;
-
+    numInstances = dataset->num_instances();
+    numAttributes = dataset->num_attributes();
     clock_gettime(CLOCK_MONOTONIC_RAW, &start);
     if (argv[2] != NULL)
     {
         INSTANCETOCHECK = atoi(argv[2]);
     }
-    int* predictions = KNN(dataset, K);
+
+    pthread_t *threads = (pthread_t*)malloc(numInstances * sizeof(pthread_t));
+    int* threadIds = (int*)malloc(numInstances * sizeof(int));
+    for (int i = 0; i < dataset->num_instances(); i++)
+        threadIds[i] = i;
+
+    for (int i = 0; i < dataset->num_instances(); i++)
+    {
+        KNNArgs* args = new KNNArgs;
+        args->threadId = threadIds[i];
+        args->k = K;
+        int status = pthread_create(&threads[i], NULL, threadedKNN,  (void*) args);
+    }
+    int* predictions = (int *) malloc(numInstances * sizeof(int));
+    for (int i = 0; i < numInstances; i++)
+    {
+        pthread_join(threads[i], NULL);
+    }
+    free(threadIds);
+    free(threads);
+
     int* confusionMatrix = computeConfusionMatrix(predictions, dataset);
     float accuracy = computeAccuracy(confusionMatrix, dataset);
 
