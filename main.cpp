@@ -41,8 +41,12 @@ typedef struct
 } KNNArgs;
 
 int vote(NeighborDistance* nearestNeighbors, int k, int numAttributes, int instanceIndex) {
-    // int* classVotes = (int *)malloc(numAttributes * sizeof(int));
-    int classVotes[numAttributes] = { 0 }; // apparently tohis initializes to 0's I should learn c++... also if I do it this way
+    int* classVotes = (int *)malloc(numAttributes * sizeof(int));
+    for (int i = 0; i < numAttributes; i++)
+    {
+        classVotes[i]=0;
+    }
+    // int classVotes[numAttributes] = { 0 }; // apparently tohis initializes to 0's I should learn c++... also if I do it this way
     //rather than the malloc above it works so...we're sticking with it
 
     for (int i = 0; i < k; i++)
