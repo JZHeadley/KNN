@@ -86,6 +86,7 @@ int vote(NeighborDistance* nearestNeighbors, int k, int numAttributes, int insta
                     neighborIndex++;
                 }
             }
+            free(classVotes);
             int classResult = vote(newNeighbors, k - 1, numAttributes, instanceIndex);
             free(newNeighbors);
             return classResult;
