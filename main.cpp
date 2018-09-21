@@ -19,6 +19,7 @@ int INSTANCETOCHECK = 1;
 ArffData* dataset;
 int numInstances;
 int numAttributes;
+int* predictions;
 
 double euclideanDistance(ArffInstance* instance1, ArffInstance* instance2, int numAttributes) {
     double sum = 0;
@@ -44,7 +45,7 @@ int vote(NeighborDistance* nearestNeighbors, int k, int numAttributes, int insta
     int* classVotes = (int *)malloc(numAttributes * sizeof(int));
     for (int i = 0; i < numAttributes; i++)
     {
-        classVotes[i]=0;
+        classVotes[i] = 0;
     }
     // int classVotes[numAttributes] = { 0 }; // apparently tohis initializes to 0's I should learn c++... also if I do it this way
     //rather than the malloc above it works so...we're sticking with it
@@ -107,9 +108,9 @@ int vote(NeighborDistance* nearestNeighbors, int k, int numAttributes, int insta
 void* threadedKNN(void* args)
 {
     KNNArgs* knnArgs = (KNNArgs*) args;
-
     int threadId = knnArgs->threadId;
     int k = knnArgs->k;
+
     ArffInstance* instance1 = dataset->get_instance(threadId);
     NeighborDistance* nearestNeighbors = (NeighborDistance*) malloc(k * sizeof(NeighborDistance));
 
@@ -160,8 +161,11 @@ void* threadedKNN(void* args)
     }
     int classification = vote(nearestNeighbors, k, numAttributes, threadId);
     free(nearestNeighbors);
+    
+    predictions[threadId] = classification;
     delete knnArgs;
-    pthread_exit((void*) classification);
+
+    return ((void*) classification);
 
 
 
@@ -215,8 +219,11 @@ int main(int argc, char *argv[])
         INSTANCETOCHECK = atoi(argv[2]);
     }
 
+    predictions = (int *) malloc(numInstances * sizeof(int));
+
     pthread_t *threads = (pthread_t*)malloc(numInstances * sizeof(pthread_t));
     int* threadIds = (int*)malloc(numInstances * sizeof(int));
+
     for (int i = 0; i < dataset->num_instances(); i++)
         threadIds[i] = i;
 
@@ -227,11 +234,12 @@ int main(int argc, char *argv[])
         args->k = K;
         int status = pthread_create(&threads[i], NULL, threadedKNN,  (void*) args);
     }
-    int* predictions = (int *) malloc(numInstances * sizeof(int));
     for (int i = 0; i < numInstances; i++)
     {
         pthread_join(threads[i], NULL);
     }
+
+
     free(threadIds);
     free(threads);
 
