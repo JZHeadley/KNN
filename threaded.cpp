@@ -13,7 +13,7 @@ using namespace std;
 #define DEBUG false
 // #define INSTANCETOCHECK 4897
 #define K 4
-
+#define NUM_THREADS 4
 int INSTANCETOCHECK = 1;
 
 ArffData* dataset;
@@ -29,8 +29,9 @@ typedef struct
 
 typedef struct
 {
-    int           threadId;
-    int           k;
+    int             threadId;
+    int             k;
+    int             instanceId;
 } KNNArgs;
 
 double euclideanDistance(ArffInstance* instance1, ArffInstance* instance2, int numAttributes) {
@@ -108,8 +109,9 @@ void* threadedKNN(void* args)
     KNNArgs* knnArgs = (KNNArgs*) args;
     int threadId = knnArgs->threadId;
     int k = knnArgs->k;
+    int instanceId = knnArgs->instanceId;
 
-    ArffInstance* instance1 = dataset->get_instance(threadId);
+    ArffInstance* instance1 = dataset->get_instance(instanceId);
     NeighborDistance* nearestNeighbors = (NeighborDistance*) malloc(k * sizeof(NeighborDistance));
 
     for (int i = 0; i < k; i++)
@@ -119,7 +121,7 @@ void* threadedKNN(void* args)
 
     for (int instance2Index = 0; instance2Index < numInstances; instance2Index++)
     {
-        if (threadId == instance2Index)
+        if (instanceId == instance2Index)
             continue;
 
         double newNeighborDistance = euclideanDistance(instance1, dataset->get_instance(instance2Index), numAttributes);
@@ -157,10 +159,10 @@ void* threadedKNN(void* args)
         }
 
     }
-    int classification = vote(nearestNeighbors, k, numAttributes, threadId);
+    int classification = vote(nearestNeighbors, k, numAttributes, instanceId);
     free(nearestNeighbors);
 
-    predictions[threadId] = classification;
+    predictions[instanceId] = classification;
     delete knnArgs;
 
     return ((void*) classification);
@@ -219,22 +221,39 @@ int main(int argc, char *argv[])
 
     predictions = (int *) malloc(numInstances * sizeof(int));
 
-    pthread_t *threads = (pthread_t*)malloc(numInstances * sizeof(pthread_t));
-    int* threadIds = (int*)malloc(numInstances * sizeof(int));
+    pthread_t *threads = (pthread_t*)malloc(NUM_THREADS * sizeof(pthread_t));
+    int* threadIds = (int*)malloc(NUM_THREADS * sizeof(int));
+    int* instanceIds = (int*)malloc(numInstances * sizeof(int));
 
-    for (int i = 0; i < dataset->num_instances(); i++)
+    for (int i = 0; i < NUM_THREADS; i++)
         threadIds[i] = i;
 
-    for (int i = 0; i < dataset->num_instances(); i++)
-    {
-        KNNArgs* args = new KNNArgs;
-        args->threadId = threadIds[i];
-        args->k = K;
-        int status = pthread_create(&threads[i], NULL, threadedKNN,  (void*) args);
-    }
     for (int i = 0; i < numInstances; i++)
+        instanceIds[i] = i;
+
+    // This should spawn only NUM_THREADS of them at a time then join them back.
+    // Could try for a worker thread approach where I don't join till all done
+    int numRun = 0;
+
+    while (numRun < numInstances)
     {
-        pthread_join(threads[i], NULL);
+        for (int i = 0; i < NUM_THREADS && numRun < numInstances; ++i)
+        {
+            KNNArgs* args = new KNNArgs;
+            args->threadId = threadIds[i];
+            args->instanceId = instanceIds[numRun];
+            args->k = K;
+            int status = pthread_create(&threads[i], NULL, threadedKNN,  (void*) args);
+            numRun++;
+        }
+        for (int i = 0; i < NUM_THREADS; ++i)
+        {
+            int status = pthread_join(threads[i], NULL);
+            if (status != 0)
+            {
+                printf("status of the thread was %i\n", status);
+            }
+        }
     }
 
 
