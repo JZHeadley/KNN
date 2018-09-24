@@ -13,7 +13,7 @@ using namespace std;
 #define DEBUG false
 // #define INSTANCETOCHECK 4897
 #define K 4
-#define NUM_THREADS 4
+#define NUM_THREADS 2048
 int INSTANCETOCHECK = 1;
 
 ArffData* dataset;
@@ -234,7 +234,7 @@ int main(int argc, char *argv[])
     // This should spawn only NUM_THREADS of them at a time then join them back.
     // Could try for a worker thread approach where I don't join till all done
     int numRun = 0;
-
+    int threadCount = 0;
     while (numRun < numInstances)
     {
         for (int i = 0; i < NUM_THREADS && numRun < numInstances; ++i)
@@ -245,10 +245,17 @@ int main(int argc, char *argv[])
             args->k = K;
             int status = pthread_create(&threads[i], NULL, threadedKNN,  (void*) args);
             numRun++;
+            threadCount++;
         }
         for (int i = 0; i < NUM_THREADS; ++i)
         {
-            int status = pthread_join(threads[i], NULL);
+            int status;
+            if (threadCount > 0)
+            {
+                status = pthread_join(threads[i], NULL);
+                threadCount--;
+            }
+
             if (status != 0)
             {
                 printf("status of the thread was %i\n", status);
