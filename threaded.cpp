@@ -249,4 +249,3 @@ int main(int argc, char *argv[])
 
     printf("The KNN classifier for %lu instances required %llu ms CPU time. Accuracy was %.4f\n", dataset->num_instances(), (long long unsigned int) diff, accuracy);
 }
-
