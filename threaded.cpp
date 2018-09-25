@@ -10,11 +10,10 @@
 
 using namespace std;
 #define DEBUG false
-// #define INSTANCETOCHECK 4897
-#define K 4
+#define K 3
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
-#define NUM_THREADS 8
+#define NUM_THREADS 1
 
 
 int INSTANCETOCHECK = 1;

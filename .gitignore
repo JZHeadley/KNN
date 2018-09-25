@@ -1,1 +1,3 @@
 main
+threaded-knn
+sequential-knn
