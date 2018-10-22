@@ -222,7 +222,7 @@
      cudaMalloc(&d_dataset, numInstances * numAttributes * sizeof(float));
      cudaMalloc(&d_distances, numTriangularSpaces * sizeof(float));
  
-     int threadsPerBlock = 256;
+     int threadsPerBlock = 512;
  //	int blocksPerGrid = (numInstances + threadsPerBlock - 1) / threadsPerBlock;
      int blocksPerGrid = ((numInstances * numInstances) + threadsPerBlock - 1) / threadsPerBlock;
      cudaEventRecord(start);
