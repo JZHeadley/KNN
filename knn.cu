@@ -189,7 +189,6 @@
  
      int numInstances = dataset->num_instances();
      int numAttributes = dataset->num_attributes();
-     int* h_predictions = (int *) calloc(numInstances, sizeof(int));
      printf("We're classifying %i instances with %i attributes\n", numInstances, numAttributes);
      cudaEvent_t start, stop;
      cudaEventCreate(&start);
@@ -197,9 +196,11 @@
      float milliseconds = 0;
      int numTriangularSpaces = (numInstances * numInstances); //(numInstances * (numInstances - 1)) / 2; // don't actually need the diagonal since its all 0's so we can have numInstances-1 instead of + 1 but math is hard
      float* h_dataset, *h_distances;
+     int*h_predictions;
+     cudaMallocHost(&h_predictions, sizeof(int) * numInstances);
      cudaMallocHost(&h_dataset, sizeof(float) * numInstances * numAttributes);
      cudaMallocHost(&h_distances, sizeof(float) * numTriangularSpaces);
-     printf("numTriangularSpaces is %i\n", numTriangularSpaces);
+      printf("numTriangularSpaces is %i\n", numTriangularSpaces);
  
      for (int instanceNum = 0; instanceNum < numInstances; instanceNum++)
      {
@@ -219,7 +220,7 @@
  
      cudaMalloc(&d_predictions, numInstances * sizeof(int));
      cudaMalloc(&d_dataset, numInstances * numAttributes * sizeof(float));
-     cudaMallocHost(&d_distances, numTriangularSpaces * sizeof(float));
+     cudaMalloc(&d_distances, numTriangularSpaces * sizeof(float));
  
      int threadsPerBlock = 256;
  //	int blocksPerGrid = (numInstances + threadsPerBlock - 1) / threadsPerBlock;
@@ -252,7 +253,12 @@
  
      printf("The KNN classifier for %lu instances required %llu ms CPU time. Accuracy was %.4f\n", numInstances, (long long unsigned int) milliseconds,
              accuracy);
- 
-     return 0;
+    cudaFreeHost(h_dataset);
+    cudaFreeHost(h_distances);
+    cudaFreeHost(h_predictions);
+    cudaFree(d_dataset);
+    cudaFree(d_distances);
+    cudaFree(d_predictions);
+    return 0;
  }
  
