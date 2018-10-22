@@ -1,3 +1,5 @@
 main
 threaded-knn
 sequential-knn
+cuda-knn
+settings.json
