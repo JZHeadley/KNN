@@ -10,7 +10,7 @@
 
 using namespace std;
 #define DEBUG false
-#define K 4
+#define K 3
 
 int INSTANCETOCHECK = 1;
 
